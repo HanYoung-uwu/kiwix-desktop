@@ -18,12 +18,21 @@ TabBar::TabBar(QWidget *parent) :
 {
     QTabBar::setDrawBase(false);
     setTabsClosable(true);
-    setElideMode(Qt::ElideRight);
+    setElideMode(Qt::ElideNone);
     setDocumentMode(true);
     setFocusPolicy(Qt::NoFocus);
     setIconSize(QSize(30, 30));
     connect(this, &QTabBar::currentChanged, this, &TabBar::onCurrentChanged);
     auto app = KiwixApp::instance();
+
+    setStyleSheet(
+                "QTabBar::tab"
+                " {"
+                "    color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,"
+                "    stop: 0.8 #2A2A2A, stop: 1.0 #E1E1E1);"
+                "  }"
+                );
+
     connect(app->getAction(KiwixApp::NewTabAction), &QAction::triggered,
             this, [=]() {
                 this->createNewTab(true);
@@ -124,7 +133,19 @@ void TabBar::setTitleOf(const QString& title, ZimView* tab)
         auto url = QUrl(title);
         setTabText(mp_stackedWidget->indexOf(tab), url.path());
     } else {
-        setTabText(mp_stackedWidget->indexOf(tab), title);
+        int idx = mp_stackedWidget->indexOf(tab);
+        setTabToolTip(idx, title);
+
+        // text_widt = tabsize - icon_size - close_button_size
+        // FIXME: close_button_size just measured on the screen
+        int text_width = tabSizeHint(idx).width() - iconSize().width() - 32;
+
+        QString cut = fontMetrics().elidedText(title, Qt::ElideRight, text_width);
+
+        // strip ... from the end (this three dots are one char)
+        if (cut.size() < title.size())
+            cut = cut.mid(0, cut.size() - 1);
+        setTabText(idx, cut);
     }
 }
 
