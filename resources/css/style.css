@@ -132,6 +132,8 @@ QTabBar::tab {
     border-right: 1px solid #ccc;
     border-radius: 0px;
     padding: 2px;
+    color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+           stop: 0.8 #2A2A2A, stop: 1.0 #E1E1E1);
 }
 
 QTabBar::tab:selected {

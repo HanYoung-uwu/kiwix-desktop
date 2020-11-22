@@ -25,14 +25,6 @@ TabBar::TabBar(QWidget *parent) :
     connect(this, &QTabBar::currentChanged, this, &TabBar::onCurrentChanged);
     auto app = KiwixApp::instance();
 
-    setStyleSheet(
-                "QTabBar::tab"
-                " {"
-                "    color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,"
-                "    stop: 0.8 #2A2A2A, stop: 1.0 #E1E1E1);"
-                "  }"
-                );
-
     connect(app->getAction(KiwixApp::NewTabAction), &QAction::triggered,
             this, [=]() {
                 this->createNewTab(true);
