@@ -128,15 +128,26 @@ void TabBar::setTitleOf(const QString& title, ZimView* tab)
         int idx = mp_stackedWidget->indexOf(tab);
         setTabToolTip(idx, title);
 
-        // text_widt = tabsize - icon_size - close_button_size
-        // FIXME: close_button_size just measured on the screen
-        int text_width = tabSizeHint(idx).width() - iconSize().width() - 32;
+        // This logic is taken from the implementation:
+        // <QTDIR>/5.12.6/Src/qtbase/src/widgets/widgets/qtabbar.cpp
+        // void QTabBar::initStyleOption(QStyleOptionTab *option, int tabIndex) const
+        QStyleOptionTab tab;
+        initStyleOption(&tab, idx);
+        QRect textRect = style()->subElementRect(QStyle::SE_TabBarTabText, &tab, this);
 
-        QString cut = fontMetrics().elidedText(title, Qt::ElideRight, text_width);
-
+        // but instead of eliding text as QTabBar::initStyleOption() does
+        // we cut it and store the flag if it was cut
+        QString cut = fontMetrics().elidedText(title, Qt::ElideRight, textRect.width());
         // strip ... from the end (this three dots are one char)
-        if (cut.size() < title.size())
+        if (cut.size() < title.size()) {
             cut = cut.mid(0, cut.size() - 1);
+            // set flag that the text was too long, was cut and this tab
+            // need 'fade out' effect while drawing
+            setTabData(idx, QVariant::fromValue(true));
+        }
+        else {
+            setTabData(idx, QVariant::fromValue(false));
+        }
         setTabText(idx, cut);
     }
 }
@@ -264,5 +275,45 @@ void TabBar::mousePressEvent(QMouseEvent *event)
         closeTab(this->tabAt(event->pos()));
     } else {
        QTabBar::mousePressEvent(event);
+    }
+}
+
+void TabBar::paintEvent(QPaintEvent *e)
+{
+    QTabBar::paintEvent(e);
+    QPainter p(this);
+
+    for (int i = 0; i < count(); ++i) {
+
+        bool need_fade_out = tabData(i).toBool();
+        if (! need_fade_out)
+            continue;
+
+        QStyleOptionTab tab;
+        initStyleOption(&tab, i);
+        QRect textRect = style()->subElementRect(QStyle::SE_TabBarTabText, &tab, this);
+
+        QRect tail = textRect;
+        int offset = textRect.width() * 0.8;
+        if (tab.direction == Qt::RightToLeft) {
+            tail.setWidth(textRect.width() - offset);
+        } else {
+            tail.setLeft(tail.x()+offset);
+            tail.setWidth(textRect.width() - offset);
+        }
+
+        bool selected = tab.state & QStyle::State_Selected;
+
+        qDebug() << "selected:" << selected;
+
+        // copy/paste from qcommonstyle.cpp in Qt sources
+        p.setPen(QPen(palette().foreground(), 0));
+        if (selected) {
+            p.setBrush(tab.palette.base());
+        } else {
+            p.setBrush(palette().background());
+        }
+
+        p.fillRect(tail, p.brush());
     }
 }
