@@ -304,16 +304,28 @@ void TabBar::paintEvent(QPaintEvent *e)
 
         bool selected = tab.state & QStyle::State_Selected;
 
-        qDebug() << "selected:" << selected;
-
-        // copy/paste from qcommonstyle.cpp in Qt sources
-        p.setPen(QPen(palette().foreground(), 0));
+        // logic from qcommonstyle.cpp in Qt sources
+        QColor c;
         if (selected) {
-            p.setBrush(tab.palette.base());
+            c = tab.palette.color(QPalette::Active, QPalette::Button);
         } else {
-            p.setBrush(palette().background());
+            c = palette().color(QPalette::Inactive, QPalette::Button);
         }
 
-        p.fillRect(tail, p.brush());
+        qDebug() << c;
+
+        QColor c0(c);
+        QColor c1(c);
+        // It turns out that Gradient doesn't support alpha chanel.
+        // Once the following line is enabled, fillRect doesn't draw anything.
+        //c0.setAlpha(255);
+        //c1.setAlpha(0);
+
+        QLinearGradient gr;
+        gr.setColorAt(0, c0);
+        gr.setColorAt(1, c1);
+
+        QBrush br(gr);
+        p.fillRect(tail, br);
     }
 }
