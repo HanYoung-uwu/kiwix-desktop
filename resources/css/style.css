@@ -135,7 +135,17 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
+
+    /* please keep this 'background-color:' value in sync with the value in src/tabbar.cpp:
+
+       void TabBar::paintEvent(QPaintEvent *e)
+         ...
+         if (selected) {
+           ...
+           c0 = QColor(Qt::white);
+    */
     background-color: white;
+
     border-bottom: 2px solid white;
 }
 

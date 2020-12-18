@@ -7,6 +7,7 @@
 #include <QToolButton>
 #include <QToolTip>
 #include <QCursor>
+#include <QPainter>
 
 #define QUITIFNULL(VIEW) if (nullptr==(VIEW)) { return; }
 #define QUITIFNOTCURRENT(VIEW) if((VIEW)!=currentWidget()) {return;}
@@ -280,7 +281,10 @@ void TabBar::mousePressEvent(QMouseEvent *event)
 
 void TabBar::paintEvent(QPaintEvent *e)
 {
+    // first, let Qt draw QTabBar normally
     QTabBar::paintEvent(e);
+
+    // Then apply fade-out effect for long tab title on top:
     QPainter p(this);
 
     for (int i = 0; i < count(); ++i) {
@@ -291,6 +295,7 @@ void TabBar::paintEvent(QPaintEvent *e)
 
         QStyleOptionTab tab;
         initStyleOption(&tab, i);
+
         QRect textRect = style()->subElementRect(QStyle::SE_TabBarTabText, &tab, this);
 
         QRect tail = textRect;
@@ -304,26 +309,66 @@ void TabBar::paintEvent(QPaintEvent *e)
 
         bool selected = tab.state & QStyle::State_Selected;
 
-        // logic from qcommonstyle.cpp in Qt sources
-        QColor c;
+        /* This gets the color from our style.css rule:
+         * QWidget {
+         *   background-color: #EAECF0;
+         * }
+         */
+        QColor c0 = tab.palette.background().color();
+
         if (selected) {
-            c = tab.palette.color(QPalette::Active, QPalette::Button);
-        } else {
-            c = palette().color(QPalette::Inactive, QPalette::Button);
+            /*
+             * Unfortunately, there is NO an easy way to get the background color of selected tab like:
+             *
+             *   c0 = tab.palette.color(QPalette::Active, QPalette::Button);
+             *   c0 = QApplication::style().standardPalette()
+             *   c0 = palette().
+             *
+             * Since we are installing our custom 'style.css'
+             * QApplication::style() returns QStyleSheetStyle object.
+             *
+             * This class is private part of Qt (no public header for it)
+             *
+             * Moreover, in its implementation (see Qt/5.12.6/Src/qtbase/src/widgets/styles/qstylesheetstyle.cpp)
+             * it declares local for this .cpp file class QRenderRule
+             * which actually takes case of getting the exact CSS rule for selected tab.
+             *
+             * For more details see:
+             *
+             * void QStyleSheetStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPainter *p,
+             *             const QWidget *w) const
+             *   ...
+             *   case CE_TabBarTabShape:
+             *     ...
+             *     QRenderRule subRule = renderRule(w, opt, PseudoElement_TabBarTab);
+             *
+             *
+             * QStyle and its derived classes have no interface for getting colors back.
+             * They can only draw a control or its part on some QPaintDevice.
+             *
+             *
+             * So we have no easy way here to get back our 'white' color we set our style.css file:
+             *
+             * QTabBar::tab:selected {
+             *   background-color: white;
+             *
+             *
+             * So we just hardcoded it here, must be kept in sync with the color in style.css
+             *
+             * Alternatively, we can try 'picking' this color from the widget
+             * after painting by QTabBar::paintEvent()
+             */
+            c0 = QColor(Qt::white);
         }
 
-        qDebug() << c;
+        QColor c1(c0);
+        c0.setAlpha(0);
+        c1.setAlpha(255);
 
-        QColor c0(c);
-        QColor c1(c);
-        // It turns out that Gradient doesn't support alpha chanel.
-        // Once the following line is enabled, fillRect doesn't draw anything.
-        //c0.setAlpha(255);
-        //c1.setAlpha(0);
-
-        QLinearGradient gr;
-        gr.setColorAt(0, c0);
-        gr.setColorAt(1, c1);
+        QLinearGradient gr(tail.topLeft(), tail.topRight());
+        gr.setSpread(QGradient::PadSpread);
+        gr.setColorAt(0.0, c0);
+        gr.setColorAt(1.0, c1);
 
         QBrush br(gr);
         p.fillRect(tail, br);
